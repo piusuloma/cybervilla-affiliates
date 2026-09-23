@@ -1,26 +1,79 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #0d0d12;
+  --surface: #15121c;
+  --surface-2: #1d1828;
+  --border: #2b2438;
+  --foreground: #f6f4f9;
+  --muted: #9791a3;
+
+  /* Brand — sampled from the CyberVilla logo mark (public/images/cybersquad*.png) */
+  --brand-pink: #fa26b2;
+  --brand-purple: #5d00b9;
+  --brand-gradient: linear-gradient(135deg, #fa26b2 0%, #5d00b9 100%);
+
+  /* Accent — brightened brand purple, tuned for AA text/icon contrast on --background */
+  --accent: #c154e8;
+  --accent-strong: #9a0db8;
+
+  /* Status semantics stay independent of brand color for clarity */
+  --success: #22c55e;
+  --danger: #f04438;
+  --warning: #f5a623;
+  --info: #3b82f6;
 }
 
 @theme inline {
   --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-muted: var(--muted);
+  --color-brand-pink: var(--brand-pink);
+  --color-brand-purple: var(--brand-purple);
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-success: var(--success);
+  --color-danger: var(--danger);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
+  --font-sans: var(--font-inter);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  border-color: var(--border);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}
+
+.bg-brand-gradient {
+  background-image: var(--brand-gradient);
+}
+
+.text-brand-gradient {
+  background-image: var(--brand-gradient);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 8px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3a3248;
 }
