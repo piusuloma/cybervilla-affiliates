@@ -2,12 +2,27 @@ export function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
 }
 
-export function formatCurrency(amount: number) {
-  return new Intl.NumberFormat("en-NG", {
-    style: "currency",
-    currency: "NGN",
-    maximumFractionDigits: 0,
-  }).format(amount);
+/**
+ * Money, in the currency it is actually priced in.
+ *
+ * Products come from the store with their own currency, so passing null prints
+ * the figure bare rather than dressing it up in a symbol nobody quoted. The
+ * NGN default is for the screens still running on mock data.
+ */
+export function formatCurrency(amount: number, currency: string | null = "NGN") {
+  if (!currency) {
+    return new Intl.NumberFormat("en-NG", { maximumFractionDigits: 0 }).format(amount);
+  }
+  try {
+    return new Intl.NumberFormat("en-NG", {
+      style: "currency",
+      currency,
+      maximumFractionDigits: 0,
+    }).format(amount);
+  } catch {
+    // An unrecognised code would otherwise throw and take the page down with it.
+    return `${currency} ${formatNumber(amount)}`;
+  }
 }
 
 export function formatNumber(n: number) {

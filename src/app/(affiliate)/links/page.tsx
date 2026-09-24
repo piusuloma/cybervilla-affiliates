@@ -2,15 +2,25 @@
 
 import { Suspense, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Copy, Check, Plus, AlertCircle } from "lucide-react";
+import { Copy, Check, Plus, AlertCircle, ShieldCheck } from "lucide-react";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Select } from "@/components/ui/Toolbar";
 import { AFFILIATE, AFFILIATE_LINKS, PRODUCTS } from "@/lib/mock-data";
+import {
+  MAX_MARKUP_PERCENT,
+  checkMarkupPercent,
+  checkSellingPrice,
+  earningFor,
+  markupPercentFor,
+  maxSellingPrice,
+} from "@/lib/rules";
 import type { AffiliateLink } from "@/lib/types";
 import { cn, formatCurrency, formatNumber } from "@/lib/utils";
 
 const ELIGIBLE_PRODUCTS = PRODUCTS.filter((p) => p.eligible);
+const LINK_BASE = "https://cybervilla.io/r";
+const DEFAULT_MARKUP = 5;
 
 function generateCode(existing: string[]) {
   const handle = AFFILIATE.name.split(" ")[0].toUpperCase();
@@ -78,53 +88,55 @@ function LinksContent() {
   const [sellingPrice, setSellingPrice] = useState<string>(
     String(PRODUCTS.find((p) => p.name === initialTarget)?.price ?? "")
   );
+  const [markup, setMarkup] = useState<string>(String(DEFAULT_MARKUP));
   const [utmSource, setUtmSource] = useState("");
   const [utmMedium, setUtmMedium] = useState("");
   const [generated, setGenerated] = useState<AffiliateLink | null>(null);
 
   const basePrice = useMemo(() => PRODUCTS.find((p) => p.name === target)?.price ?? 0, [target]);
   const sellingPriceNum = Number(sellingPrice);
-  const earning = sellingPriceNum > 0 ? sellingPriceNum - basePrice : 0;
-  const priceValid = targetType !== "Product" || (sellingPrice !== "" && sellingPriceNum >= basePrice);
+  const markupNum = Number(markup);
+
+  // A product link is priced in money and a storewide one in percent, but both
+  // end up as the same thing: how much this link adds to CyberVilla's price.
+  const check =
+    targetType === "Product" ? checkSellingPrice(basePrice, sellingPriceNum) : checkMarkupPercent(markupNum);
+  const valid = check.ok;
+  const earning = earningFor(basePrice, sellingPriceNum);
+  const markupPercent =
+    targetType === "Product" ? markupPercentFor(basePrice, sellingPriceNum) : markupNum;
 
   function handleGenerate() {
-    if (!priceValid) return;
+    if (!valid) return;
     const utmParts = [utmSource && `utm_source=${utmSource}`, utmMedium && `utm_medium=${utmMedium}`].filter(
       Boolean
     );
     const utm = utmParts.join("&");
 
-    let base: string;
-    let label: string;
-    let extra: Partial<AffiliateLink> = {};
-
-    if (targetType === "Product") {
-      const slug = target.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-      base = `https://cybervilla.io/p/${slug}`;
-      label = `${target} — new link`;
-      extra = { basePrice, sellingPrice: sellingPriceNum, earningPerSale: earning };
-    } else {
-      base = "https://cybervilla.io/";
-      label = "Storewide — new link";
-    }
-
-    const priceParam = targetType === "Product" ? `&price=${sellingPriceNum}` : "";
     const code = generateCode(links.map((l) => l.code));
-    const url = `${base}?ref=AFF10492${priceParam}${utm ? `&${utm}` : ""}`;
+
+    // The address carries the code and nothing else. Everything it stands for
+    // — the product, the price, who gets paid — is looked up from the code
+    // when someone opens it, because anything in the address is editable by
+    // the person about to click it.
+    const url = `${LINK_BASE}/${code}${utm ? `?${utm}` : ""}`;
 
     const newLink: AffiliateLink = {
       id: `LNK-${String(links.length + 1).padStart(3, "0")}`,
-      label,
+      label: targetType === "Product" ? `${target} — new link` : "Storewide — new link",
       targetType,
       target: targetType === "Product" ? target : "Entire store",
       url,
       code,
       utm: utm || undefined,
       sales: 0,
-      commissions: 0,
+      earnings: 0,
       createdAt: new Date().toISOString().slice(0, 10),
       status: "active",
-      ...extra,
+      markupPercent,
+      ...(targetType === "Product"
+        ? { basePrice, sellingPrice: sellingPriceNum, earningPerSale: earning }
+        : {}),
     };
     setLinks((prev) => [newLink, ...prev]);
     setGenerated(newLink);
@@ -133,10 +145,9 @@ function LinksContent() {
   return (
     <div className="space-y-5">
       <p className="text-sm text-muted">
-        Every link comes with a matching code you can say or text instead. Both always identify you, so you&apos;re
-        credited at CyberVilla&apos;s standard rate no matter what the customer ends up buying — set a selling
-        price on a product link or code and you&apos;ll additionally earn the markup whenever that exact product is
-        the one purchased.
+        Every link comes with a matching code you can say or text instead. You decide what to sell at — up to{" "}
+        {MAX_MARKUP_PERCENT}% above CyberVilla&apos;s price — and whatever the buyer pays above that price is
+        yours. Your markup travels with the link, so it applies to whatever they end up buying through it.
       </p>
 
       <Card>
@@ -187,7 +198,7 @@ function LinksContent() {
           </div>
         </div>
 
-        {targetType === "Product" && (
+        {targetType === "Product" ? (
           <div className="border-t border-border p-4 sm:p-5">
             <label className="text-xs font-medium text-muted">Your selling price</label>
             <div className="mt-1 flex flex-wrap items-center gap-3">
@@ -196,30 +207,68 @@ function LinksContent() {
                 <input
                   type="number"
                   min={basePrice}
+                  max={maxSellingPrice(basePrice)}
                   step={500}
                   value={sellingPrice}
                   onChange={(e) => setSellingPrice(e.target.value)}
                   className={cn(
                     "w-full rounded-lg border bg-surface-2 py-2 pl-7 pr-3 text-sm text-foreground focus:outline-none",
-                    priceValid ? "border-border focus:border-accent" : "border-danger focus:border-danger"
+                    valid ? "border-border focus:border-accent" : "border-danger focus:border-danger"
                   )}
                 />
               </div>
-              <span className="text-xs text-muted">Base price: {formatCurrency(basePrice)}</span>
-              {priceValid ? (
+              <span className="text-xs text-muted">
+                CyberVilla&apos;s price: {formatCurrency(basePrice)} · most you can charge:{" "}
+                {formatCurrency(maxSellingPrice(basePrice))}
+              </span>
+              {check.ok ? (
                 <span className="text-xs font-medium text-success">
-                  You&apos;ll earn {formatCurrency(earning)} per sale
+                  You&apos;ll earn {formatCurrency(earning)} per sale ({markupPercent}% markup)
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1 text-xs font-medium text-danger">
-                  <AlertCircle size={13} /> Can&apos;t sell below the base price
+                  <AlertCircle size={13} /> {check.reason}
                 </span>
               )}
             </div>
             <p className="mt-2 text-xs text-muted">
-              This markup applies when the customer buys {target || "this product"}. If they buy something else
-              instead, the link or code still credits you — just at CyberVilla&apos;s standard commission rate for
-              whatever they purchase.
+              This price applies when the customer buys {target || "this product"}. If they buy something else
+              through the same link or code, that item is sold at the same {markupPercent}% markup and you earn
+              the difference there instead.
+            </p>
+          </div>
+        ) : (
+          <div className="border-t border-border p-4 sm:p-5">
+            <label className="text-xs font-medium text-muted">Your markup</label>
+            <div className="mt-1 flex flex-wrap items-center gap-3">
+              <div className="relative w-full max-w-[140px]">
+                <input
+                  type="number"
+                  min={0}
+                  max={MAX_MARKUP_PERCENT}
+                  step={0.5}
+                  value={markup}
+                  onChange={(e) => setMarkup(e.target.value)}
+                  className={cn(
+                    "w-full rounded-lg border bg-surface-2 py-2 pl-3 pr-7 text-sm text-foreground focus:outline-none",
+                    valid ? "border-border focus:border-accent" : "border-danger focus:border-danger"
+                  )}
+                />
+                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted">%</span>
+              </div>
+              {check.ok ? (
+                <span className="text-xs font-medium text-success">
+                  Everything bought through this link sells for {markupNum}% more, and that {markupNum}% is yours
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 text-xs font-medium text-danger">
+                  <AlertCircle size={13} /> {check.reason}
+                </span>
+              )}
+            </div>
+            <p className="mt-2 text-xs text-muted">
+              A storewide link has no single product to price, so you set the markup instead. It applies to
+              whatever the customer buys, up to {MAX_MARKUP_PERCENT}%.
             </p>
           </div>
         )}
@@ -227,7 +276,7 @@ function LinksContent() {
         <div className="space-y-3 border-t border-border p-4 sm:p-5">
           <button
             onClick={handleGenerate}
-            disabled={!priceValid}
+            disabled={!valid}
             className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-black hover:bg-accent-strong disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Plus size={15} /> Generate Link & Code
@@ -246,6 +295,11 @@ function LinksContent() {
                 </span>
                 <CopyButton text={generated.code} />
               </div>
+              <p className="flex items-start gap-1.5 text-[11px] text-muted">
+                <ShieldCheck size={12} className="mt-0.5 shrink-0 text-success" />
+                The address carries only your code. The price it stands for is looked up when someone opens it,
+                so nobody can change it on the way through.
+              </p>
             </div>
           )}
         </div>
@@ -262,7 +316,7 @@ function LinksContent() {
                 <th className="px-4 py-3 font-medium">Type</th>
                 <th className="px-4 py-3 font-medium">Your price</th>
                 <th className="px-4 py-3 font-medium">Sales</th>
-                <th className="px-4 py-3 font-medium">Commissions</th>
+                <th className="px-4 py-3 font-medium">Earnings</th>
                 <th className="px-4 py-3 font-medium">Status</th>
                 <th className="px-4 py-3 font-medium sm:pr-5" />
               </tr>
@@ -283,15 +337,15 @@ function LinksContent() {
                       <>
                         <span className="text-foreground">{formatCurrency(l.sellingPrice)}</span>
                         <span className="block text-xs text-success">
-                          +{formatCurrency(l.earningPerSale ?? 0)}/sale
+                          +{formatCurrency(l.earningPerSale ?? 0)}/sale · {l.markupPercent}%
                         </span>
                       </>
                     ) : (
-                      "—"
+                      <span className="text-foreground">+{l.markupPercent}% on everything</span>
                     )}
                   </td>
                   <td className="px-4 py-3 text-foreground">{formatNumber(l.sales)}</td>
-                  <td className="px-4 py-3 font-medium text-accent">{formatCurrency(l.commissions)}</td>
+                  <td className="px-4 py-3 font-medium text-accent">{formatCurrency(l.earnings)}</td>
                   <td className="px-4 py-3">
                     <Badge status={l.status}>{l.status}</Badge>
                   </td>

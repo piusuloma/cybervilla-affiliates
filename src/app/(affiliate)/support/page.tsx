@@ -13,7 +13,7 @@ const TUTORIALS = [
   "Getting started as a CyberVilla affiliate",
   "Generating your first affiliate link",
   "Using promotional codes effectively",
-  "Reading your transactions & commission statuses",
+  "Reading your transactions & earnings statuses",
   "Setting up your payout method",
 ];
 
@@ -27,7 +27,7 @@ export default function SupportPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const [tickets, setTickets] = useState<SupportTicket[]>(SUPPORT_TICKETS);
   const [subject, setSubject] = useState("");
-  const [category, setCategory] = useState("Commission dispute");
+  const [category, setCategory] = useState("Earnings dispute");
   const [related, setRelated] = useState("None");
   const [message, setMessage] = useState("");
   const [submitted, setSubmitted] = useState(false);
@@ -102,7 +102,7 @@ export default function SupportPage() {
                 <Select
                   value={category}
                   onChange={setCategory}
-                  options={["Commission dispute", "Payments", "Technical issue", "Account", "Other"]}
+                  options={["Earnings dispute", "Payments", "Technical issue", "Account", "Other"]}
                   className="w-full"
                 />
               </label>

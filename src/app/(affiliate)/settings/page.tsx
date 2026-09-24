@@ -7,15 +7,15 @@ import { AFFILIATE } from "@/lib/mock-data";
 import { cn, formatDate } from "@/lib/utils";
 
 const TOGGLES = [
-  { key: "commission", label: "Commission milestones" },
+  { key: "earning", label: "Earnings milestones" },
   { key: "transaction", label: "Transaction status changes" },
   { key: "payout", label: "Payout processing & completion" },
-  { key: "promotion", label: "Promotion & commission term changes" },
+  { key: "promotion", label: "Promotions & catalogue changes" },
 ];
 
 export default function SettingsPage() {
   const [prefs, setPrefs] = useState<Record<string, boolean>>({
-    commission: true,
+    earning: true,
     transaction: true,
     payout: true,
     promotion: false,
