@@ -67,10 +67,9 @@ export default function DashboardPage() {
           title="Commission Status Breakdown"
           subtitle="How your commissions move through the payout lifecycle"
         />
-        <div className="grid grid-cols-2 gap-3 p-4 sm:p-5 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-3 sm:p-5">
           <CommissionTile label="Pending" amount={breakdown.pending} status="pending" />
           <CommissionTile label="Approved" amount={breakdown.approved} status="approved" />
-          <CommissionTile label="Payable" amount={breakdown.payable} status="payable" />
           <CommissionTile label="Paid" amount={breakdown.paid} status="paid" />
         </div>
       </Card>

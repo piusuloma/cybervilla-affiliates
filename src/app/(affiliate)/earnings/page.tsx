@@ -1,19 +1,32 @@
 "use client";
 
-import { useState } from "react";
-import { Download, FileText, Landmark } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Download, FileText, Landmark, Send } from "lucide-react";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
-import { AFFILIATE, PAYOUTS, commissionBreakdown } from "@/lib/mock-data";
+import { AFFILIATE, commissionBreakdown } from "@/lib/mock-data";
+import { useAppData } from "@/lib/store";
 import { cn, downloadFile, formatCurrency, formatDate } from "@/lib/utils";
 
 export default function EarningsPage() {
   const breakdown = commissionBreakdown();
+  const { payouts, requestPayout } = useAppData();
   const [method, setMethod] = useState<"Bank Transfer" | "PayPal">("Bank Transfer");
   const [saved, setSaved] = useState(false);
+  const [requested, setRequested] = useState(false);
 
-  const payableProgress = Math.min(100, (breakdown.payable / AFFILIATE.minPayoutThreshold) * 100);
-  const meetsThreshold = breakdown.payable >= AFFILIATE.minPayoutThreshold;
+  const myPayouts = useMemo(
+    () =>
+      payouts
+        .filter((p) => p.affiliateId === AFFILIATE.id)
+        .sort((a, b) => new Date(b.requestedAt).getTime() - new Date(a.requestedAt).getTime()),
+    [payouts]
+  );
+  const hasActiveRequest = myPayouts.some((p) => p.status === "pending" || p.status === "processing");
+
+  const payableProgress = Math.min(100, (breakdown.approved / AFFILIATE.minPayoutThreshold) * 100);
+  const meetsThreshold = breakdown.approved >= AFFILIATE.minPayoutThreshold;
+  const canRequest = meetsThreshold && !hasActiveRequest;
 
   function handleSave(e: React.FormEvent) {
     e.preventDefault();
@@ -21,10 +34,17 @@ export default function EarningsPage() {
     setTimeout(() => setSaved(false), 2000);
   }
 
+  function handleRequestPayout() {
+    if (!canRequest) return;
+    requestPayout(AFFILIATE.id, AFFILIATE.name, breakdown.approved, method);
+    setRequested(true);
+    setTimeout(() => setRequested(false), 2500);
+  }
+
   function exportTaxDoc() {
     downloadFile(
       `CyberVilla Affiliate Earnings Statement\nAffiliate: ${AFFILIATE.name} (${AFFILIATE.id})\nTax Year: 2026\n\nTotal Paid: ${formatCurrency(
-        PAYOUTS.filter((p) => p.status === "completed").reduce((s, p) => s + p.amount, 0)
+        myPayouts.filter((p) => p.status === "completed").reduce((s, p) => s + p.amount, 0)
       )}`,
       "cybervilla-earnings-statement-2026.txt",
       "text/plain"
@@ -37,9 +57,9 @@ export default function EarningsPage() {
 
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-1">
-          <CardHeader title="Payable balance" subtitle="Toward your next payout threshold" />
+          <CardHeader title="Approved balance" subtitle="Toward your next payout threshold" />
           <div className="p-4 sm:p-5">
-            <p className="text-2xl font-semibold text-foreground">{formatCurrency(breakdown.payable)}</p>
+            <p className="text-2xl font-semibold text-foreground">{formatCurrency(breakdown.approved)}</p>
             <div className="mt-3 h-2 overflow-hidden rounded-full bg-surface-2">
               <div className="h-full rounded-full bg-brand-gradient transition-all" style={{ width: `${payableProgress}%` }} />
             </div>
@@ -49,6 +69,18 @@ export default function EarningsPage() {
             <Badge tone={meetsThreshold ? "success" : "neutral"} className="mt-3">
               {meetsThreshold ? "Eligible for next payout" : "Below payout threshold"}
             </Badge>
+
+            <button
+              onClick={handleRequestPayout}
+              disabled={!canRequest}
+              className="mt-4 inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-black hover:bg-accent-strong disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <Send size={14} /> Request payout
+            </button>
+            {hasActiveRequest && (
+              <p className="mt-2 text-xs text-muted">You already have a payout request in progress.</p>
+            )}
+            {requested && <p className="mt-2 text-xs font-medium text-success">Payout requested — awaiting review.</p>}
           </div>
         </Card>
 
@@ -115,12 +147,12 @@ export default function EarningsPage() {
       </Card>
 
       <Card>
-        <CardHeader title="Payout history" subtitle="Completed and in-progress payouts." />
+        <CardHeader title="Payout history" subtitle="Requested, in-progress, and completed payouts." />
         <div className="overflow-x-auto">
           <table className="w-full min-w-[640px] text-sm">
             <thead>
               <tr className="border-b border-border text-left text-xs text-muted">
-                <th className="px-4 py-3 font-medium sm:px-5">Date</th>
+                <th className="px-4 py-3 font-medium sm:px-5">Requested</th>
                 <th className="px-4 py-3 font-medium">Amount</th>
                 <th className="px-4 py-3 font-medium">Method</th>
                 <th className="px-4 py-3 font-medium">Reference</th>
@@ -128,9 +160,9 @@ export default function EarningsPage() {
               </tr>
             </thead>
             <tbody>
-              {PAYOUTS.map((p) => (
+              {myPayouts.map((p) => (
                 <tr key={p.id} className="border-b border-border last:border-0">
-                  <td className="px-4 py-3 text-foreground sm:px-5">{formatDate(p.date)}</td>
+                  <td className="px-4 py-3 text-foreground sm:px-5">{formatDate(p.requestedAt)}</td>
                   <td className="px-4 py-3 font-medium text-foreground">{formatCurrency(p.amount)}</td>
                   <td className="px-4 py-3 text-muted">
                     <span className="inline-flex items-center gap-1.5">
@@ -140,9 +172,19 @@ export default function EarningsPage() {
                   <td className="px-4 py-3 text-muted">{p.reference}</td>
                   <td className="px-4 py-3 sm:pr-5">
                     <Badge status={p.status}>{p.status}</Badge>
+                    {p.status === "failed" && p.rejectionReason && (
+                      <p className="mt-1 max-w-[220px] text-[11px] text-danger">{p.rejectionReason}</p>
+                    )}
                   </td>
                 </tr>
               ))}
+              {myPayouts.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-5 py-8 text-center text-sm text-muted">
+                    No payout requests yet.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -150,7 +192,7 @@ export default function EarningsPage() {
           <button
             onClick={() =>
               downloadFile(
-                PAYOUTS.map((p) => `${p.date},${p.amount},${p.method},${p.status},${p.reference}`).join("\n"),
+                myPayouts.map((p) => `${p.requestedAt},${p.amount},${p.method},${p.status},${p.reference}`).join("\n"),
                 "cybervilla-payout-history.csv"
               )
             }

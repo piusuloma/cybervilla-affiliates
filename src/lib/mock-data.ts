@@ -2,7 +2,6 @@ import type {
   AffiliateLink,
   AppNotification,
   KpiPoint,
-  Payout,
   Product,
   SupportTicket,
   Transaction,
@@ -68,6 +67,8 @@ export function trendForRange(range: (typeof DATE_RANGES)[number]): KpiPoint[] {
   }
 }
 
+// id/name/image/price/category mirror CyberVilla's Odoo catalog and will come from the Odoo API
+// in production; commissionRate/offer/status/eligible are affiliate-program-specific overlay fields.
 export const PRODUCTS: Product[] = [
   { id: "P-1001", name: "iPhone 15 Pro Max 256GB", image: "📱", price: 1850000, category: "Mobile Phones", commissionRate: 5, offer: "Back to School Bundle", status: "active", eligible: true },
   { id: "P-1002", name: "Samsung Galaxy S24 Ultra", image: "📱", price: 1650000, category: "Mobile Phones", commissionRate: 5, status: "active", eligible: true },
@@ -164,15 +165,16 @@ export const AFFILIATE_LINKS: AffiliateLink[] = [
 ];
 
 const productNames = PRODUCTS.map((p) => p.name);
-const txStatuses: Transaction["transactionStatus"][] = ["approved", "approved", "approved", "pending", "pending", "rejected", "cancelled", "refunded", "disputed"];
-const commissionForStatus: Record<Transaction["transactionStatus"], Transaction["commissionStatus"]> = {
-  pending: "pending",
-  approved: "approved",
-  rejected: "rejected",
-  cancelled: "rejected",
-  refunded: "rejected",
-  disputed: "pending",
-};
+const txStatuses: Transaction["transactionStatus"][] = [
+  "completed",
+  "completed",
+  "completed",
+  "completed",
+  "pending",
+  "pending",
+  "cancelled",
+  "refunded",
+];
 
 export const TRANSACTIONS: Transaction[] = Array.from({ length: 48 }).map((_, i) => {
   const product = productNames[Math.floor(rand() * productNames.length)];
@@ -180,7 +182,6 @@ export const TRANSACTIONS: Transaction[] = Array.from({ length: 48 }).map((_, i)
   const unitPrice = PRODUCTS.find((p) => p.name === product)?.price ?? 100000;
   const amount = unitPrice * qty;
   const status = txStatuses[Math.floor(rand() * txStatuses.length)];
-  const commissionStatus = commissionForStatus[status];
   const commissionRate = PRODUCTS.find((p) => p.name === product)?.commissionRate ?? 5;
   const daysAgo = Math.floor(rand() * 60);
   const date = new Date();
@@ -197,25 +198,16 @@ export const TRANSACTIONS: Transaction[] = Array.from({ length: 48 }).map((_, i)
     source: isLink ? link.label : link.code,
     sourceType: isLink ? "Link" : "Code",
     commission: Math.round((amount * commissionRate) / 100),
-    commissionStatus,
     transactionStatus: status,
-    payoutStatus: commissionStatus === "paid" ? "paid" : commissionStatus === "approved" && rand() > 0.5 ? "scheduled" : "unpaid",
+    payoutStatus: status === "completed" && rand() > 0.5 ? "paid" : "unpaid",
   };
 });
 
-export const PAYOUTS: Payout[] = [
-  { id: "PO-201", date: "2026-08-31", amount: 1245000, method: "Bank Transfer", status: "completed", reference: "PYT-08-2026" },
-  { id: "PO-200", date: "2026-07-31", amount: 980500, method: "Bank Transfer", status: "completed", reference: "PYT-07-2026" },
-  { id: "PO-199", date: "2026-06-30", amount: 1102000, method: "Bank Transfer", status: "completed", reference: "PYT-06-2026" },
-  { id: "PO-198", date: "2026-05-31", amount: 764200, method: "PayPal", status: "completed", reference: "PYT-05-2026" },
-  { id: "PO-197", date: "2026-09-15", amount: 892300, method: "Bank Transfer", status: "processing", reference: "PYT-09-2026" },
-];
-
 export const NOTIFICATIONS: AppNotification[] = [
   { id: "N-1", type: "commission", title: "Commission milestone reached", body: "You've earned over ₦2,000,000 in commissions this quarter.", timestamp: "2026-09-17T09:12:00", read: false, href: "/earnings" },
-  { id: "N-2", type: "transaction", title: "Transaction approved", body: "Order ORD-88012 (iPhone 15 Pro Max) has been approved. Commission: ₦92,500.", timestamp: "2026-09-16T14:40:00", read: false, href: "/transactions" },
+  { id: "N-2", type: "transaction", title: "Order completed", body: "Order ORD-88012 (iPhone 15 Pro Max) has been completed. Commission: ₦92,500.", timestamp: "2026-09-16T14:40:00", read: false, href: "/transactions" },
   { id: "N-3", type: "payout", title: "Payout processing", body: "Your September payout of ₦892,300 is being processed via Bank Transfer.", timestamp: "2026-09-15T08:00:00", read: false, href: "/earnings" },
-  { id: "N-4", type: "transaction", title: "Transaction disputed", body: "Order ORD-88030 has been flagged as disputed and is under review.", timestamp: "2026-09-14T11:22:00", read: true, href: "/transactions" },
+  { id: "N-4", type: "transaction", title: "Order cancelled", body: "Order ORD-88030 was cancelled. The associated commission has been voided.", timestamp: "2026-09-14T11:22:00", read: true, href: "/transactions" },
   { id: "N-5", type: "promotion", title: "Commission terms updated", body: "Commission rate for Accessories increased from 10% to 15%.", timestamp: "2026-09-10T16:05:00", read: true, href: "/products" },
   { id: "N-6", type: "payout", title: "Payout completed", body: "Your August payout of ₦1,245,000 was successfully paid out.", timestamp: "2026-08-31T10:00:00", read: true, href: "/earnings" },
   { id: "N-7", type: "transaction", title: "Transaction refunded", body: "Order ORD-87990 was refunded. Associated commission has been reversed.", timestamp: "2026-08-28T13:15:00", read: true, href: "/transactions" },
@@ -228,12 +220,12 @@ export const SUPPORT_TICKETS: SupportTicket[] = [
 ];
 
 export const FAQS = [
-  { q: "When are commissions marked as payable?", a: "Commissions move from Approved to Payable once the return window for the associated order closes (48 hours after delivery), provided the transaction hasn't been rejected, cancelled, refunded, or disputed." },
+  { q: "When does a commission move from Pending to Approved?", a: "As soon as the order is completed — confirmed, delivered, and past the 48-hour return window — its commission moves from Pending to Approved and is queued for your next payout." },
   { q: "How do I know which link or code drove a sale?", a: "Every transaction in your Transactions table shows the exact affiliate link or promotional code used, along with the product, order ID, and resulting commission." },
   { q: "What if my customer buys something other than the product I shared?", a: "Your link and code always identify you, no matter what gets purchased. A custom selling price only applies to the exact product it was set for — if the customer buys something else instead, you still earn CyberVilla's standard commission on that purchase. Nothing is lost; just share the same link or code regardless of what they decide on." },
-  { q: "What's the minimum payout threshold?", a: "Payouts are processed once your payable balance reaches ₦25,000. Balances below this roll over to the next payout cycle automatically." },
+  { q: "What's the minimum payout threshold?", a: "Payouts are processed once your approved balance reaches ₦25,000. Balances below this roll over to the next payout cycle automatically." },
   { q: "Can I use my promo code on my own purchases?", a: "No. Self-referral using your own affiliate link or promo code is not eligible for commission and may result in commission reversal." },
-  { q: "Why did a commission get reversed?", a: "Commissions are reversed when the underlying order is cancelled, refunded, rejected, or successfully disputed by the customer." },
+  { q: "Why did a commission get reversed?", a: "Commissions are reversed when the underlying order is cancelled or refunded." },
 ];
 
 export function kpiTotals(points: KpiPoint[]) {
@@ -252,18 +244,19 @@ export function averageOrderValue() {
 }
 
 export function commissionBreakdown() {
-  const buckets: Record<"pending" | "approved" | "payable" | "paid", number> = {
+  const buckets: Record<"pending" | "approved" | "paid", number> = {
     pending: 0,
     approved: 0,
-    payable: 0,
     paid: 0,
   };
   TRANSACTIONS.forEach((t) => {
-    if (t.commissionStatus === "pending") buckets.pending += t.commission;
-    else if (t.commissionStatus === "approved") {
-      if (t.payoutStatus === "scheduled") buckets.payable += t.commission;
+    // Cancelled/refunded orders never earn a commission — they're excluded entirely.
+    if (t.transactionStatus === "pending") {
+      buckets.pending += t.commission;
+    } else if (t.transactionStatus === "completed") {
+      if (t.payoutStatus === "paid") buckets.paid += t.commission;
       else buckets.approved += t.commission;
-    } else if (t.payoutStatus === "paid") buckets.paid += t.commission;
+    }
   });
   return buckets;
 }

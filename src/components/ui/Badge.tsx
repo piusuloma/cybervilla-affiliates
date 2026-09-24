@@ -14,13 +14,11 @@ const toneStyles: Record<Tone, string> = {
 const statusTone: Record<string, Tone> = {
   active: "success",
   approved: "success",
-  payable: "info",
   paid: "success",
   completed: "success",
   resolved: "success",
   pending: "warning",
   processing: "warning",
-  scheduled: "warning",
   open: "warning",
   in_progress: "info",
   expired: "neutral",
@@ -29,7 +27,6 @@ const statusTone: Record<string, Tone> = {
   rejected: "danger",
   cancelled: "danger",
   refunded: "danger",
-  disputed: "danger",
   failed: "danger",
 };
 

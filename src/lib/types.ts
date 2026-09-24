@@ -1,12 +1,4 @@
-export type CommissionStatus = "pending" | "approved" | "payable" | "paid" | "rejected";
-
-export type TransactionStatus =
-  | "pending"
-  | "approved"
-  | "rejected"
-  | "cancelled"
-  | "refunded"
-  | "disputed";
+export type TransactionStatus = "pending" | "completed" | "cancelled" | "refunded";
 
 export type PromotionStatus = "active" | "expired" | "unavailable";
 
@@ -57,18 +49,9 @@ export interface Transaction {
   source: string;
   sourceType: "Link" | "Code";
   commission: number;
-  commissionStatus: CommissionStatus;
   transactionStatus: TransactionStatus;
-  payoutStatus: "unpaid" | "scheduled" | "paid";
-}
-
-export interface Payout {
-  id: string;
-  date: string;
-  amount: number;
-  method: "Bank Transfer" | "PayPal";
-  status: "processing" | "completed" | "failed";
-  reference: string;
+  /** Only meaningful once transactionStatus is "completed" — a pending/cancelled/refunded order never gets paid out. */
+  payoutStatus: "unpaid" | "paid";
 }
 
 export interface AppNotification {
@@ -88,4 +71,51 @@ export interface SupportTicket {
   status: "open" | "in_progress" | "resolved";
   createdAt: string;
   relatedTo?: string;
+}
+
+export type AffiliateAccountStatus = "active" | "suspended" | "pending" | "rejected";
+
+export interface AffiliateApplication {
+  channel: "Instagram" | "TikTok" | "YouTube" | "Blog / Website" | "WhatsApp Community" | "Twitter/X";
+  channelUrl: string;
+  audienceSize: number;
+  pitch: string;
+  appliedAt: string;
+}
+
+export interface AdminAffiliate {
+  id: string;
+  name: string;
+  email: string;
+  tier: string;
+  status: AffiliateAccountStatus;
+  joinedAt: string;
+  sales: number;
+  commissions: number;
+  payableBalance: number;
+  linkCount: number;
+  application: AffiliateApplication;
+  taxFormOnFile: boolean;
+  paymentVerified: boolean;
+  rejectionReason?: string;
+}
+
+export interface PlatformTransaction extends Transaction {
+  affiliateId: string;
+  affiliateName: string;
+}
+
+export interface PlatformPayout {
+  id: string;
+  affiliateId: string;
+  affiliateName: string;
+  requestedAt: string;
+  amount: number;
+  method: "Bank Transfer" | "PayPal";
+  status: "pending" | "processing" | "completed" | "failed";
+  reference: string;
+  /** Needs manual review before it can be auto-processed — large amount, missing compliance docs, or first payout. */
+  flagged: boolean;
+  flagReason?: string;
+  rejectionReason?: string;
 }
