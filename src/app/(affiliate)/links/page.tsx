@@ -131,6 +131,7 @@ function LinksContent() {
       utm: utm || undefined,
       sales: 0,
       earnings: 0,
+      commissions: 0,
       createdAt: new Date().toISOString().slice(0, 10),
       status: "active",
       markupPercent,
@@ -337,15 +338,15 @@ function LinksContent() {
                       <>
                         <span className="text-foreground">{formatCurrency(l.sellingPrice)}</span>
                         <span className="block text-xs text-success">
-                          +{formatCurrency(l.earningPerSale ?? 0)}/sale · {l.markupPercent}%
+                          +{formatCurrency(l.earningPerSale ?? 0)}/sale · {l.markupPercent ?? 0}%
                         </span>
                       </>
                     ) : (
-                      <span className="text-foreground">+{l.markupPercent}% on everything</span>
+                      <span className="text-foreground">+{l.markupPercent ?? 0}% on everything</span>
                     )}
                   </td>
                   <td className="px-4 py-3 text-foreground">{formatNumber(l.sales)}</td>
-                  <td className="px-4 py-3 font-medium text-accent">{formatCurrency(l.earnings)}</td>
+                  <td className="px-4 py-3 font-medium text-accent">{formatCurrency(l.earnings ?? l.commissions)}</td>
                   <td className="px-4 py-3">
                     <Badge status={l.status}>{l.status}</Badge>
                   </td>

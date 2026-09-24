@@ -30,9 +30,11 @@ export interface AffiliateLink {
   code: string;
   utm?: string;
   sales: number;
+  earnings?: number;
   commissions: number;
   createdAt: string;
   status: PromotionStatus;
+  markupPercent?: number;
   /** Product-specific links let the affiliate set their own resale price. */
   basePrice?: number;
   sellingPrice?: number;
@@ -56,7 +58,7 @@ export interface Transaction {
 
 export interface AppNotification {
   id: string;
-  type: "commission" | "transaction" | "payout" | "promotion";
+  type: "earning" | "commission" | "transaction" | "payout" | "promotion";
   title: string;
   body: string;
   timestamp: string;

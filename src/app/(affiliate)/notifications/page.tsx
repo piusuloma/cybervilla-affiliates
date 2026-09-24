@@ -10,6 +10,7 @@ import { cn, timeAgo } from "@/lib/utils";
 
 const ICONS: Record<AppNotification["type"], typeof Bell> = {
   earning: BadgeCheck,
+  commission: BadgeCheck,
   transaction: ReceiptText,
   payout: CreditCard,
   promotion: Megaphone,
