@@ -6,6 +6,8 @@ import type {
   Transaction,
 } from "./types";
 import { AFFILIATE, PRODUCTS } from "./mock-data";
+import { REFERRAL_BONUS_PER_SALE, normaliseReferralCode, referralBonusStatus, referralCodeFor } from "./referrals";
+import type { ReferralBonus } from "./types";
 
 // Separate seeded generator so admin mock data doesn't perturb the affiliate-side sequence.
 function seeded(seed: number) {
@@ -42,6 +44,17 @@ const NAMES = [
 ];
 
 const TIERS = ["Bronze Partner", "Silver Partner", "Gold Partner"] as const;
+
+/** Who invited whom in the seed data, by position in NAMES. */
+const SEED_SPONSORS: Record<number, string> = {
+  0: AFFILIATE.id,
+  3: AFFILIATE.id,
+  5: AFFILIATE.id,
+  9: AFFILIATE.id,
+  11: AFFILIATE.id, // still awaiting approval, so no sales yet
+  6: "AFF-20001",
+  10: "AFF-20001",
+};
 
 const CHANNELS = ["Instagram", "TikTok", "YouTube", "Blog / Website", "WhatsApp Community", "Twitter/X"] as const;
 const PITCH_FOCUS = [
@@ -92,6 +105,7 @@ export const AFFILIATES: AdminAffiliate[] = [
     application: buildApplication(AFFILIATE.name, AFFILIATE.joinedAt),
     taxFormOnFile: true,
     paymentVerified: true,
+    referralCode: referralCodeFor(AFFILIATE),
   },
   ...NAMES.map((name, i) => {
     const tier = TIERS[Math.floor(rand() * TIERS.length)];
@@ -111,8 +125,9 @@ export const AFFILIATES: AdminAffiliate[] = [
           })()
         : joined.toISOString().slice(0, 10);
     const isPending = status === "pending";
+    const id = `AFF-${20001 + i}`;
     return {
-      id: `AFF-${20001 + i}`,
+      id,
       name,
       email: slugEmail(name),
       tier,
@@ -127,9 +142,58 @@ export const AFFILIATES: AdminAffiliate[] = [
       application: buildApplication(name, appliedAt),
       taxFormOnFile: isPending ? false : rand() > 0.15,
       paymentVerified: isPending ? false : rand() > 0.1,
+      referralCode: referralCodeFor({ id, name }),
+      referredBy: SEED_SPONSORS[i],
     };
   }),
 ];
+
+export function findAffiliateByReferralCode(affiliates: AdminAffiliate[], code: string) {
+  const wanted = normaliseReferralCode(code);
+  return wanted ? affiliates.find((a) => a.referralCode === wanted) : undefined;
+}
+
+export function recruitsOf(affiliates: AdminAffiliate[], sponsorId: string) {
+  return affiliates.filter((a) => a.referredBy === sponsorId);
+}
+
+/**
+ * Every referral bonus a sponsor is owed or has been paid, newest first.
+ *
+ * Built from the recruits' own orders, so there is no second copy of the
+ * truth to drift: when an order is cancelled the bonus on it goes void too.
+ */
+export function referralBonusesFor(affiliates: AdminAffiliate[], sponsorId: string): ReferralBonus[] {
+  const recruits = new Map(recruitsOf(affiliates, sponsorId).map((r) => [r.id, r]));
+  return PLATFORM_TRANSACTIONS.filter((t) => recruits.has(t.affiliateId))
+    .map((t) => ({
+      id: `RB-${t.id}`,
+      sponsorId,
+      recruitId: t.affiliateId,
+      recruitName: t.affiliateName,
+      orderId: t.orderId,
+      date: t.date,
+      product: t.product,
+      amount: REFERRAL_BONUS_PER_SALE,
+      // Mock stand-in: a real bonus is paid on the sponsor's payout, not the recruit's.
+      status: referralBonusStatus(t.transactionStatus, t.payoutStatus === "paid"),
+    }))
+    .sort((a, b) => b.date.localeCompare(a.date));
+}
+
+/** Bonus totals by status. Void bonuses are counted, not summed: they were never owed. */
+export function referralBonusTotals(bonuses: ReferralBonus[]) {
+  const totals = { pending: 0, approved: 0, paid: 0, voided: 0, sales: 0 };
+  for (const b of bonuses) {
+    if (b.status === "void") {
+      totals.voided += 1;
+      continue;
+    }
+    totals[b.status] += b.amount;
+    if (b.status !== "pending") totals.sales += 1;
+  }
+  return totals;
+}
 
 const productNames = PRODUCTS.map((p) => p.name);
 const txStatuses: Transaction["transactionStatus"][] = [

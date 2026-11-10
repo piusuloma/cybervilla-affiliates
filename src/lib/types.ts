@@ -98,6 +98,25 @@ export interface AdminAffiliate {
   taxFormOnFile: boolean;
   paymentVerified: boolean;
   rejectionReason?: string;
+  /** What other affiliates enter when signing up, so this affiliate is credited for inviting them. */
+  referralCode: string;
+  /** The id of the affiliate whose code this one signed up with. Set once, at sign-up. */
+  referredBy?: string;
+}
+
+/** The bonus an inviting affiliate earns on one sale made by someone they recruited. */
+export interface ReferralBonus {
+  id: string;
+  /** Who earns the bonus. */
+  sponsorId: string;
+  /** Whose sale earned it. */
+  recruitId: string;
+  recruitName: string;
+  orderId: string;
+  date: string;
+  product: string;
+  amount: number;
+  status: "pending" | "approved" | "paid" | "void";
 }
 
 export interface PlatformTransaction extends Transaction {

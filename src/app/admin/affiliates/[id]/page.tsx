@@ -21,7 +21,7 @@ import { Card, CardHeader } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { StatTile } from "@/components/ui/StatTile";
 import { Modal } from "@/components/ui/Modal";
-import { transactionsForAffiliate } from "@/lib/admin-data";
+import { recruitsOf, referralBonusesFor, referralBonusTotals, transactionsForAffiliate } from "@/lib/admin-data";
 import { useAppData } from "@/lib/store";
 import { cn, formatCurrency, formatDate, formatNumber } from "@/lib/utils";
 
@@ -36,6 +36,12 @@ export default function AdminAffiliateDetailPage() {
     () => (affiliate ? transactionsForAffiliate(affiliate.id).slice(0, 12) : []),
     [affiliate]
   );
+  const recruits = useMemo(() => (affiliate ? recruitsOf(affiliates, affiliate.id) : []), [affiliate, affiliates]);
+  const referralTotals = useMemo(
+    () => referralBonusTotals(affiliate ? referralBonusesFor(affiliates, affiliate.id) : []),
+    [affiliate, affiliates]
+  );
+  const sponsor = affiliate?.referredBy ? affiliates.find((a) => a.id === affiliate.referredBy) : undefined;
   const affiliatePayouts = useMemo(
     () => (affiliate ? payouts.filter((p) => p.affiliateId === affiliate.id) : []),
     [affiliate, payouts]
@@ -203,6 +209,53 @@ export default function AdminAffiliateDetailPage() {
         <StatTile label="Payable Balance" value={formatCurrency(affiliate.payableBalance)} icon={Wallet} />
         <StatTile label="Links & Codes" value={formatNumber(affiliate.linkCount)} icon={Link2} />
       </div>
+
+      <Card>
+        <CardHeader
+          title="Referrals"
+          subtitle={`Code ${affiliate.referralCode}${sponsor ? "" : " · joined without an invite"}`}
+        />
+        <div className="space-y-4 p-4 sm:p-5">
+          {sponsor && (
+            <p className="text-sm text-muted">
+              Invited by{" "}
+              <Link href={`/admin/affiliates/${sponsor.id}`} className="font-medium text-accent hover:underline">
+                {sponsor.name}
+              </Link>
+              , who earns a bonus on each of this affiliate&apos;s completed sales.
+            </p>
+          )}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="rounded-lg border border-border bg-surface-2 p-3">
+              <p className="text-xs text-muted">Recruits</p>
+              <p className="mt-1 text-lg font-semibold text-foreground">{formatNumber(recruits.length)}</p>
+            </div>
+            <div className="rounded-lg border border-border bg-surface-2 p-3">
+              <p className="text-xs text-muted">Bonuses owed</p>
+              <p className="mt-1 text-lg font-semibold text-foreground">
+                {formatCurrency(referralTotals.approved + referralTotals.pending)}
+              </p>
+              <p className="text-[11px] text-muted">{formatCurrency(referralTotals.pending)} still pending</p>
+            </div>
+            <div className="rounded-lg border border-border bg-surface-2 p-3">
+              <p className="text-xs text-muted">Bonuses paid</p>
+              <p className="mt-1 text-lg font-semibold text-foreground">{formatCurrency(referralTotals.paid)}</p>
+            </div>
+          </div>
+          {recruits.length > 0 && (
+            <ul className="divide-y divide-border rounded-lg border border-border">
+              {recruits.map((r) => (
+                <li key={r.id} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
+                  <Link href={`/admin/affiliates/${r.id}`} className="font-medium text-foreground hover:text-accent">
+                    {r.name}
+                  </Link>
+                  <Badge status={r.status}>{r.status}</Badge>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </Card>
 
       <Card>
         <CardHeader title="Recent transactions" subtitle="Most recent 12 orders attributed to this affiliate" />

@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { Copy, Check, Plus, AlertCircle } from "lucide-react";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { CopyButton } from "@/components/ui/CopyButton";
 import { Select } from "@/components/ui/Toolbar";
 import { AFFILIATE, AFFILIATE_LINKS, PRODUCTS } from "@/lib/mock-data";
 import type { AffiliateLink } from "@/lib/types";
@@ -19,27 +20,6 @@ function generateCode(existing: string[]) {
     code = `${handle}${Math.floor(100 + Math.random() * 900)}`;
   } while (existing.includes(code));
   return code;
-}
-
-function CopyButton({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false);
-  return (
-    <button
-      onClick={async () => {
-        try {
-          await navigator.clipboard.writeText(text);
-        } catch {
-          // clipboard unavailable — no-op
-        }
-        setCopied(true);
-        setTimeout(() => setCopied(false), 1500);
-      }}
-      className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium text-muted hover:bg-surface-2 hover:text-foreground"
-    >
-      {copied ? <Check size={13} className="text-success" /> : <Copy size={13} />}
-      {copied ? "Copied" : "Copy"}
-    </button>
-  );
 }
 
 function CopyableCode({ code }: { code: string }) {

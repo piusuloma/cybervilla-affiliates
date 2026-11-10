@@ -5,12 +5,19 @@ import { Download, FileText, Landmark, Send } from "lucide-react";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { AFFILIATE, commissionBreakdown } from "@/lib/mock-data";
+import { referralBonusesFor, referralBonusTotals } from "@/lib/admin-data";
 import { useAppData } from "@/lib/store";
 import { cn, downloadFile, formatCurrency, formatDate } from "@/lib/utils";
 
 export default function EarningsPage() {
-  const breakdown = commissionBreakdown();
-  const { payouts, requestPayout } = useAppData();
+  const commissions = commissionBreakdown();
+  const { affiliates, payouts, requestPayout } = useAppData();
+  const referralTotals = useMemo(
+    () => referralBonusTotals(referralBonusesFor(affiliates, AFFILIATE.id)),
+    [affiliates]
+  );
+  // One balance, paid in one payout: commissions and referral bonuses are both money owed.
+  const breakdown = { approved: commissions.approved + referralTotals.approved };
   const [method, setMethod] = useState<"Bank Transfer" | "PayPal">("Bank Transfer");
   const [saved, setSaved] = useState(false);
   const [requested, setRequested] = useState(false);
@@ -60,6 +67,12 @@ export default function EarningsPage() {
           <CardHeader title="Approved balance" subtitle="Toward your next payout threshold" />
           <div className="p-4 sm:p-5">
             <p className="text-2xl font-semibold text-foreground">{formatCurrency(breakdown.approved)}</p>
+            {referralTotals.approved > 0 && (
+              <p className="mt-1 text-xs text-muted">
+                {formatCurrency(commissions.approved)} from your sales + {formatCurrency(referralTotals.approved)} in
+                referral bonuses
+              </p>
+            )}
             <div className="mt-3 h-2 overflow-hidden rounded-full bg-surface-2">
               <div className="h-full rounded-full bg-brand-gradient transition-all" style={{ width: `${payableProgress}%` }} />
             </div>
