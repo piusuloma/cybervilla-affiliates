@@ -13,8 +13,27 @@
  * programme into a pyramid scheme, which Nigerian law treats as a crime.
  */
 
-/** What the inviting affiliate earns on each of their recruit's sales, in NGN. */
+/** What the inviting affiliate earns on each of their recruit's qualifying orders, in NGN. */
 export const REFERRAL_BONUS_PER_SALE = 1000;
+
+/**
+ * The least CyberVilla must be paying in commission on an order before it
+ * earns a referral bonus, in NGN.
+ *
+ * Without it, a flat ₦1,000 on a ₦9,500 charger would cost more than half
+ * again what we already pay the recruit. With it, the bonus is never more
+ * than a fifth of the commission on the same order.
+ *
+ * Counted per order, on CyberVilla's commission alone. The recruit's own
+ * markup is left out on purpose: they set it themselves, so counting it
+ * would let them nudge a cheap order over the line.
+ */
+export const MIN_ORDER_COMMISSION_FOR_BONUS = 5000;
+
+/** Whether an order is big enough to earn the inviter a bonus. */
+export function qualifiesForReferralBonus(orderCommission: number): boolean {
+  return orderCommission >= MIN_ORDER_COMMISSION_FOR_BONUS;
+}
 
 /**
  * Where the bonus on one recruit sale stands.

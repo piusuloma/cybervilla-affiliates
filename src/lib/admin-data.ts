@@ -6,7 +6,13 @@ import type {
   Transaction,
 } from "./types";
 import { AFFILIATE, PRODUCTS } from "./mock-data";
-import { REFERRAL_BONUS_PER_SALE, normaliseReferralCode, referralBonusStatus, referralCodeFor } from "./referrals";
+import {
+  REFERRAL_BONUS_PER_SALE,
+  normaliseReferralCode,
+  qualifiesForReferralBonus,
+  referralBonusStatus,
+  referralCodeFor,
+} from "./referrals";
 import type { ReferralBonus } from "./types";
 
 // Separate seeded generator so admin mock data doesn't perturb the affiliate-side sequence.
@@ -162,10 +168,12 @@ export function recruitsOf(affiliates: AdminAffiliate[], sponsorId: string) {
  *
  * Built from the recruits' own orders, so there is no second copy of the
  * truth to drift: when an order is cancelled the bonus on it goes void too.
+ * Orders below the commission floor never earn a bonus, so they don't appear.
  */
 export function referralBonusesFor(affiliates: AdminAffiliate[], sponsorId: string): ReferralBonus[] {
   const recruits = new Map(recruitsOf(affiliates, sponsorId).map((r) => [r.id, r]));
-  return PLATFORM_TRANSACTIONS.filter((t) => recruits.has(t.affiliateId))
+  // `commission` here is CyberVilla's commission on the whole order, without any markup.
+  return PLATFORM_TRANSACTIONS.filter((t) => recruits.has(t.affiliateId) && qualifiesForReferralBonus(t.commission))
     .map((t) => ({
       id: `RB-${t.id}`,
       sponsorId,

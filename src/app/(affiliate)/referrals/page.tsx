@@ -9,7 +9,7 @@ import { StatTile } from "@/components/ui/StatTile";
 import { Pagination } from "@/components/ui/Pagination";
 import { AFFILIATE } from "@/lib/mock-data";
 import { recruitsOf, referralBonusesFor, referralBonusTotals } from "@/lib/admin-data";
-import { REFERRAL_BONUS_PER_SALE } from "@/lib/referrals";
+import { MIN_ORDER_COMMISSION_FOR_BONUS, REFERRAL_BONUS_PER_SALE } from "@/lib/referrals";
 import { useAppData } from "@/lib/store";
 import { formatCurrency, formatDate, formatNumber } from "@/lib/utils";
 
@@ -57,8 +57,8 @@ export default function ReferralsPage() {
   return (
     <div className="space-y-5">
       <p className="text-sm text-muted">
-        Invite other marketers to CyberVilla. You earn {formatCurrency(REFERRAL_BONUS_PER_SALE)} on every completed
-        sale they make.
+        Invite other marketers to CyberVilla. You earn {formatCurrency(REFERRAL_BONUS_PER_SALE)} on every qualifying
+        order they complete.
       </p>
 
       <div className="grid gap-4 lg:grid-cols-3">
@@ -100,11 +100,12 @@ export default function ReferralsPage() {
             <Step n={1}>Someone signs up with your link or code.</Step>
             <Step n={2}>We review their application. Once approved, they start selling.</Step>
             <Step n={3}>
-              Each sale they complete earns you {formatCurrency(REFERRAL_BONUS_PER_SALE)}, added to your payout balance.
+              Each order they complete that earns them at least {formatCurrency(MIN_ORDER_COMMISSION_FOR_BONUS)} in
+              commission earns you {formatCurrency(REFERRAL_BONUS_PER_SALE)}, added to your payout balance.
             </Step>
             <li className="border-t border-border pt-3 text-xs text-muted">
-              Signing people up doesn&apos;t earn anything by itself. Only their sales do. Cancelled or refunded orders
-              don&apos;t earn a bonus.
+              In practice that means phones, laptops, tablets and larger parts orders, not small accessories. Signing
+              people up doesn&apos;t earn anything by itself, and cancelled or refunded orders don&apos;t earn a bonus.
             </li>
           </ol>
         </Card>
@@ -137,7 +138,7 @@ export default function ReferralsPage() {
                 <th className="px-4 py-3 font-medium sm:px-5">Name</th>
                 <th className="px-4 py-3 font-medium">Status</th>
                 <th className="px-4 py-3 font-medium">Joined</th>
-                <th className="px-4 py-3 font-medium">Completed sales</th>
+                <th className="px-4 py-3 font-medium">Bonus orders</th>
                 <th className="px-4 py-3 font-medium sm:pr-5">You&apos;ve earned</th>
               </tr>
             </thead>
@@ -169,7 +170,7 @@ export default function ReferralsPage() {
       </Card>
 
       <Card>
-        <CardHeader title="Bonus history" subtitle="One entry for every sale your recruits make." />
+        <CardHeader title="Bonus history" subtitle="One entry for every qualifying order your recruits make." />
         <div className="overflow-x-auto">
           <table className="w-full min-w-[640px] text-sm">
             <thead>
